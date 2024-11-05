@@ -11,10 +11,14 @@ const ERROR_RESPONSE_FILE = path.join(__dirname, 'error_response.html');
 
 /**
  * Initialize Logger
- * @param {Object} [customLogger] - Optional custom logger provided by the host application.
+ * @param {Object} [options] - Options for initializing the logger.
+ * @param {Object} [options.customLogger] - Optional custom logger provided by the host application.
+ * @param {boolean} [options.enableLogging] - Enable logging when used as a dependency.
  * @returns {Object} - Configured logger instance.
  */
-function initializeLogger(customLogger) {
+function initializeLogger(options = {}) {
+    const { customLogger, enableLogging } = options;
+
     if (customLogger) {
         return customLogger;
     }
@@ -22,10 +26,21 @@ function initializeLogger(customLogger) {
     const isDevelopment = process.env.NODE_ENV !== 'production';
 
     const loggerTransports = [];
-    if (isDevelopment) {
+
+    if (isDevelopment || enableLogging) {
         loggerTransports.push(new transports.Console());
-        loggerTransports.push(new transports.File({ filename: LOG_FILE }));
-    } else {
+
+        if (isDevelopment) {
+            loggerTransports.push(new transports.File({ filename: LOG_FILE }));
+        }
+    }
+
+    if (!isDevelopment && !enableLogging) {
+        // Silent logger
+        loggerTransports.push(new transports.Console({
+            silent: true,
+        }));
+    } else if (!isDevelopment && enableLogging) {
         loggerTransports.push(new transports.Console({
             level: 'warn',
             format: format.combine(
@@ -36,7 +51,7 @@ function initializeLogger(customLogger) {
     }
 
     return createLogger({
-        level: isDevelopment ? 'debug' : 'info',
+        level: isDevelopment || enableLogging ? 'debug' : 'info',
         format: format.combine(
             format.timestamp(),
             format.printf(({ timestamp, level, message }) => `[${timestamp}] ${level.toUpperCase()}: ${message}`),
@@ -51,10 +66,13 @@ const logger = initializeLogger();
 /**
  * Check if a Kick channel is live
  * @param {string} channelName - The Kick channel name.
+ * @param {Object} [options] - Options for the function.
+ * @param {Object} [options.customLogger] - Optional custom logger provided by the host application.
+ * @param {boolean} [options.enableLogging] - Enable logging when used as a dependency.
  * @returns {Promise<Object>} - Object containing live status and channel info.
  */
-async function checkChannelLiveStatus(channelName) {
-    const pkgLogger = logger;
+async function checkChannelLiveStatus(channelName, options = {}) {
+    const pkgLogger = initializeLogger(options);
     const url = `https://kick.com/${channelName}`;
     pkgLogger.info(`Checking live status for Kick channel: ${channelName} at ${url}`);
 
@@ -74,7 +92,7 @@ async function checkChannelLiveStatus(channelName) {
         // Listen for console events and log them
         page.on('console', (msg) => {
             for (let i = 0; i < msg.args().length; ++i) {
-                console.log(`PAGE LOG: ${msg.args()[i]}`);
+                pkgLogger.info(`PAGE LOG: ${msg.args()[i]}`);
             }
         });
 
@@ -88,40 +106,29 @@ async function checkChannelLiveStatus(channelName) {
         fs.writeFileSync(LAST_RESPONSE_FILE, content, 'utf8');
         pkgLogger.info(`Page saved to ${LAST_RESPONSE_FILE}`);
 
-        console.log('test');
+        pkgLogger.info('test');
 
         // Evaluate the page to determine if the channel is live
         const result = await page.evaluate(() => {
-            console.log('Inside evaluate function');
-
             const avatarElement = document.getElementById('channel-avatar');
             if (!avatarElement) {
-                console.log('Avatar element not found');
                 return { isLive: false, message: 'Channel avatar not found' };
             }
 
-            console.log('Avatar element found');
-
             const avatarWrapperDiv = avatarElement.parentElement;
             if (!avatarWrapperDiv) {
-                console.log('Avatar wrapper div not found');
                 return { isLive: false, message: 'Avatar wrapper div not found' };
             }
 
-            console.log('Avatar wrapper div found');
-
             const classList = avatarWrapperDiv.classList;
-            console.log('Avatar wrapper classList:', Array.from(classList));
 
             if (classList.contains('border-green-500')) {
-                console.log('Live indicator found via class');
                 const channelName = document.querySelector('#channel-username')?.textContent.trim() || 'Unknown Channel';
                 const titleElement = document.querySelector('div.flex.min-w-0.max-w-full.shrink.gap-1.overflow-hidden span');
                 const title = titleElement?.textContent.trim() || '';
                 return { isLive: true, channelName, title };
             }
 
-            console.log('Live indicator not found via class');
             return { isLive: false };
         });
 
@@ -131,10 +138,10 @@ async function checkChannelLiveStatus(channelName) {
         result.channelUrl = url;
 
         if (result.isLive) {
-            pkgLogger.info(`Channel ${channelName} is live!`);
+            pkgLogger.info(`Channel ${result.channelName} is live!`);
             pkgLogger.info(`Title: ${result.title}`);
         } else {
-            pkgLogger.info(`Channel ${channelName} is not live.`);
+            pkgLogger.info(`Channel ${channelName} is not live. Reason: ${result.message || 'Unknown'}`);
         }
 
         return result;
@@ -149,7 +156,8 @@ async function checkChannelLiveStatus(channelName) {
 if (require.main === module) {
     const channelName = process.argv[2];
     if (!channelName) {
-        logger.error('Please provide a Kick channel name.');
+        // eslint-disable-next-line no-console
+        console.error('Please provide a Kick channel name.');
         process.exit(1);
     }
 
@@ -159,7 +167,7 @@ if (require.main === module) {
             logger.info(JSON.stringify(result, null, 2));
         })
         .catch(error => {
-            logger.error('Failed to check live status:', error.message);
+            logger.error(`Failed to check live status: ${error.message}`);
         });
 }
 
