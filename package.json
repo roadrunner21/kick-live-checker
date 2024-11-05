@@ -1,0 +1,38 @@
+{
+  "name": "kick-live-checker",
+  "version": "1.0.0",
+  "description": "A tool to check if a Kick channel is currently live streaming.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "lint": "eslint . --ext .js,.mjs",
+    "lint:fix": "eslint . --ext .js,.mjs --fix"
+  },
+  "keywords": [
+    "Kick",
+    "live",
+    "stream",
+    "channel",
+    "status",
+    "checker"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/kick-live-checker.git"
+  },
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cheerio": "^1.0.0",
+    "debug": "^4.3.7",
+    "jsonpath-plus": "^10.1.0",
+    "puppeteer": "^23.6.1",
+    "winston": "^3.16.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.14.0",
+    "eslint": "^9.14.0",
+    "globals": "^15.11.0"
+  }
+}
