@@ -106,8 +106,6 @@ async function checkChannelLiveStatus(channelName, options = {}) {
         fs.writeFileSync(LAST_RESPONSE_FILE, content, 'utf8');
         pkgLogger.info(`Page saved to ${LAST_RESPONSE_FILE}`);
 
-        pkgLogger.info('test');
-
         // Evaluate the page to determine if the channel is live
         const result = await page.evaluate(() => {
             const avatarElement = document.getElementById('channel-avatar');
