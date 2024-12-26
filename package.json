@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "description": "A tool to check if a Kick channel is currently live streaming.",
   "main": "index.js",
+  "bin": {
+    "ts-kick-scraper": "./src/cli.ts"
+  },
   "scripts": {
-    "start": "node index.js",
+    "start": "ts-node src/cli.ts",
     "lint": "eslint . --ext .js,.mjs",
     "lint:fix": "eslint . --ext .js,.mjs --fix"
   },
@@ -32,7 +35,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",
+    "@types/node": "^22.10.2",
     "eslint": "^9.14.0",
-    "globals": "^15.11.0"
+    "globals": "^15.11.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
   }
 }
