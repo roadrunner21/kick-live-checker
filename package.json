@@ -1,5 +1,5 @@
 {
-  "name": "kick-live-checker",
+  "name": "ts-kick-scraper",
   "version": "1.0.0",
   "description": "A tool to check if a Kick channel is currently live streaming.",
   "main": "index.js",

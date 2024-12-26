@@ -1,7 +1,6 @@
+# ts-kick-scraper
 
-# kick-live-checker
-
-A Node.js tool to check if a Kick channel is currently live streaming.
+A Node.js tool to scrape Kick.com for clips and streamer metadata in a structured JSON format.
 
 ## Table of Contents
 - [Installation](#installation)
@@ -12,16 +11,18 @@ A Node.js tool to check if a Kick channel is currently live streaming.
 - [Dependencies](#dependencies)
 - [License](#license)
 
+---
+
 ## Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/kick-live-checker.git
+   git clone https://github.com/yourusername/ts-kick-scraper.git
    ```
 
 2. Navigate to the project directory:
    ```bash
-   cd kick-live-checker
+   cd ts-kick-scraper
    ```
 
 3. Install the dependencies:
@@ -29,11 +30,16 @@ A Node.js tool to check if a Kick channel is currently live streaming.
    npm install
    ```
 
+---
+
 ## Usage
 
 ### As a Standalone Tool
 
-To use `kick-live-checker` as a standalone CLI tool, run the following command with the Kick channel name as an argument:
+To use `ts-kick-scraper` as a standalone CLI tool, you can execute specific scraping tasks from the command line.
+
+#### Check if a Channel is Live
+Run the following command with the Kick channel name as an argument:
 
 ```bash
 node index.js <channelName>
@@ -48,64 +54,76 @@ node index.js xqc
 
 ### As a Dependency
 
-To use `kick-live-checker` in your project, first install it via npm:
+To integrate `ts-kick-scraper` into your project, first install it via npm:
 
 ```bash
-npm install kick-live-checker
+npm install ts-kick-scraper
 ```
 
-Then, import and use it in your code:
+Then, import and use it in your code. For example, checking a channel's live status:
 
 ```javascript
-const { checkChannelLiveStatus } = require('kick-live-checker');
+const { checkChannelLiveStatus } = require('ts-kick-scraper');
 
 // Optional: Use your own logger
 const winston = require('winston');
 const customLogger = winston.createLogger({
-    level: 'info',
-    format: winston.format.simple(),
-    transports: [new winston.transports.Console()]
+level: 'info',
+format: winston.format.simple(),
+transports: [new winston.transports.Console()]
 });
 
 checkChannelLiveStatus('xqc', { logger: customLogger })
-    .then(result => {
-        console.log(result);
-    })
-    .catch(error => {
-        console.error(error);
-    });
+.then(result => {
+console.log(result);
+})
+.catch(error => {
+console.error(error);
+});
 ```
 
-If you don't provide a custom logger, `kick-live-checker` will use its default logging configuration based on the `NODE_ENV` environment variable.
+If you don't provide a custom logger, `ts-kick-scraper` will use its default logging configuration based on the `NODE_ENV` environment variable.
+
+---
 
 ## Example Output
 
-When a channel is live, you’ll see output similar to:
-
+### When a Channel is Live
 ```json
 {
-  "isLive": true,
-  "channelName": "xQc",
-  "title": "🛑LIVE🛑LIVE🛑LIVE🛑LIVE🛑DRAMA🛑STUFF🛑AHHHHHHHHH🛑",
-  "channelUrl": "https://kick.com/xqc"
+"isLive": true,
+"channelName": "xQc",
+"title": "🛑LIVE🛑LIVE🛑LIVE🛑LIVE🛑DRAMA🛑STUFF🛑AHHHHHHHHH🛑",
+"channelUrl": "https://kick.com/xqc"
 }
 ```
 
-When a channel is not live, the output will be:
-
+### When a Channel is Not Live
 ```json
 {
-  "isLive": false,
-  "channelUrl": "https://kick.com/xqc"
+"isLive": false,
+"channelUrl": "https://kick.com/xqc"
 }
 ```
+
+---
 
 ## Dependencies
 
 This project relies on the following Node.js packages:
-- `puppeteer` for web scraping and navigation
-- `winston` for logging
+- `puppeteer`: For web scraping and browser automation.
+- `winston`: For structured logging and debugging.
+
+---
 
 ## License
 
-This project is licensed under the [Prosperity Public License](./LICENSE). You are free to use this software non-commercially. For commercial use, please contact the author for permission or refer to the terms in the license.
+This project is licensed under the [Prosperity Public License](./LICENSE). You are free to use this software for non-commercial purposes. For commercial use, please contact the author for permission or refer to the terms in the license.
+
+---
+
+## Next Steps
+
+- Adding functions to scrape clip data from Kick.com.
+- Support for scheduling periodic scraping tasks.
+- Enhancing integration with external APIs.
