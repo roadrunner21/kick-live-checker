@@ -3,38 +3,38 @@
 /**
  * The main entry point for the CLI and the package export.
  */
-import { scrapeChannelPage } from './scraper';
+import { scrapeKickPage } from './scraper';
 import { initializeLogger } from './logger';
 
 /**
- * If this script is run directly from the CLI (e.g., `node index.js <channelName>`),
+ * If this script is run directly from the CLI (e.g., `node index.js <option>`),
  * we parse the arguments and run a scraping test.
  */
 if (require.main === module) {
-    const channelName = process.argv[2];
-    if (!channelName) {
-        console.error('Please provide a Kick channel name, e.g.:');
-        console.error('  node index.js xqc');
-        process.exit(1);
-    }
+  const scrapeClips = process.argv.includes('--clips');
 
-    // Initialize a logger for CLI usage
-    const logger = initializeLogger({ enableLogging: true });
+  if (!scrapeClips) {
+    console.error('Please provide a valid option:');
+    console.error('  node index.js --clips (to scrape clips)');
+    process.exit(1);
+  }
 
-    scrapeChannelPage(channelName, { customLogger: logger })
-      .then((data) => {
-          logger.info(`Scraped data for channel: ${data.channelName}`);
-          logger.info(JSON.stringify(data, null, 2));
-      })
-      .catch((err) => {
-          logger.error(`Failed to scrape channel: ${err.message}`);
-          process.exit(1);
-      });
+  // Initialize a logger for CLI usage
+  const logger = initializeLogger({ enableLogging: true });
+
+  scrapeKickPage({ customLogger: logger, scrapeClips })
+    .then((data) => {
+      logger.info('Scraped data successfully:');
+      console.log(JSON.stringify(data, null, 2));
+    })
+    .catch((err) => {
+      logger.error(`Failed to scrape: ${err.message}`);
+      process.exit(1);
+    });
 }
 
 /**
  * Export scraper functionality for importing in other projects.
  */
-export { scrapeChannelPage } from './scraper';
+export { scrapeKickPage } from './scraper';
 export { initializeLogger } from './logger';
-
