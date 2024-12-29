@@ -36,5 +36,5 @@ if (require.main === module) {
 /**
  * Export scraper functionality for importing in other projects.
  */
-export { scrapeKickPage } from './scraper';
+export { scrapeKickPage, testClipApi } from './scraper';
 export { initializeLogger } from './logger';

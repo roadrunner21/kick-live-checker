@@ -1,9 +1,14 @@
 import { BASE_URL, CLIPS_URL } from './constants';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import fs from 'fs';
 import path from 'path';
 import { Logger } from 'winston';
 import { initializeLogger } from './logger';
+import axios from "axios";
+import { Page } from "puppeteer";
+
+puppeteer.use(StealthPlugin());
 
 // Interfaces
 export interface ScraperOptions {
@@ -126,5 +131,144 @@ export async function scrapeKickPage(
     logger.error(`Error scraping page: ${error.message}`);
     fs.writeFileSync(ERROR_RESPONSE_FILE, error.message, 'utf8');
     throw error;
+  }
+}
+async function autoScroll(page: Page, maxScrolls: number): Promise<void> {
+  console.log('Starting autoScroll...');
+  // Wait for 3 seconds before starting the scrolling
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+  console.log('Waited 3 seconds before starting scrolling.');
+
+  try {
+    // Log some relevant metrics before going into page.evaluate
+    const { width, height } = (await page.viewport()) || { width: null, height: null };
+    console.log(`Viewport width: ${width}, height: ${height}`);
+
+    // Evaluate scroll logic in the browser context
+    await page.evaluate(
+      async (scrollLimit: number) => {
+        console.log('Inside page.evaluate for scrolling...');
+
+        // Grab the container by ID
+        const container = document.querySelector<HTMLElement>('#main-container');
+        if (!container) {
+          console.log('No element found with ID #main-container');
+          return;
+        }
+
+        // Log container-side metrics before scrolling
+        console.log(`container.scrollHeight: ${container.scrollHeight}`);
+        console.log(`container.clientHeight: ${container.clientHeight}`);
+
+        await new Promise<void>((resolve) => {
+          let totalHeight = 0;
+          const distance = 100;
+          let scrollCount = 0;
+
+          const timer = setInterval(() => {
+            // Each iteration, log key metrics
+            console.log(`\nScroll iteration: ${scrollCount + 1}`);
+            const scrollHeight = container.scrollHeight;
+            console.log(`  scrollHeight: ${scrollHeight}`);
+            console.log(`  totalHeight so far: ${totalHeight}`);
+            console.log(`  container.clientHeight: ${container.clientHeight}`);
+
+            // Perform the actual scroll on the container
+            container.scrollBy(0, distance);
+            totalHeight += distance;
+            scrollCount++;
+
+            // Evaluate if we've reached bottom or exceeded scroll limit
+            const bottomReached = totalHeight >= (scrollHeight - container.clientHeight);
+            const limitReached = scrollCount >= scrollLimit;
+
+            console.log(
+              `  bottomReached=${bottomReached}, limitReached=${limitReached}`
+            );
+
+            if (bottomReached || limitReached) {
+              console.log(`Stopping scroll at iteration ${scrollCount}...`);
+              clearInterval(timer);
+              resolve();
+            }
+          }, 200);
+        });
+
+        console.log('Completed scrolling inside page.evaluate.');
+      },
+      maxScrolls
+    );
+  } catch (err) {
+    console.error('Error in autoScroll:', err);
+  }
+  console.log('Completed autoScroll function.');
+}
+
+export async function testClipApi(logger?: Logger): Promise<void> {
+  const pkgLogger = logger || initializeLogger();
+  const testUrl = `${BASE_URL}/browse/clips?sort=view&range=day`;
+
+  try {
+    pkgLogger.info('Launching Puppeteer in GUI mode with stealth plugin...');
+
+    // Launch in headful mode for debugging
+    const browser = await puppeteer.launch({
+      headless: false,
+      defaultViewport: {
+        width: 1280,
+        height: 800,
+      },
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    const page = await browser.newPage();
+
+    // Forward browser console logs to Node
+    page.on('console', (msg) => {
+      console.log(`BROWSER LOG: ${msg.type()} => ${msg.text()}`);
+    });
+
+    await page.setUserAgent(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+    );
+    await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-GB,en;q=0.9,en;q=0.8' });
+
+    // Intercept requests/responses to /api/v2/clips
+    page.on('request', (req) => {
+      if (req.url().includes('/api/v2/clips')) {
+        pkgLogger.info(`[REQUEST] ${req.method()} => ${req.url()}`);
+        pkgLogger.info(`Request Headers: ${JSON.stringify(req.headers(), null, 2)}`);
+      }
+    });
+    page.on('response', async (res) => {
+      if (res.url().includes('/api/v2/clips')) {
+        try {
+          const textBody = await res.text();
+          pkgLogger.info(`[RESPONSE] => ${res.url()} [Status: ${res.status()}]`);
+          pkgLogger.info(`Body snippet: ${textBody.slice(0, 300)}...`);
+        } catch (err) {
+          pkgLogger.warn(`Failed to parse response from ${res.url()}. Error: ${err}`);
+        }
+      }
+    });
+
+    pkgLogger.info(`Navigating to ${testUrl}...`);
+    await page.goto(testUrl, { waitUntil: 'networkidle2' });
+
+    pkgLogger.info('Performing scrolling...');
+    await autoScroll(page, 50);
+
+    const htmlContent = await page.content();
+    fs.writeFileSync(LAST_RESPONSE_FILE, htmlContent, 'utf8');
+    pkgLogger.info(`Saved HTML content to ${LAST_RESPONSE_FILE}`);
+
+    const allCookies = await page.cookies();
+    const cookieString = allCookies.map((c) => `${c.name}=${c.value}`).join('; ');
+    pkgLogger.info(`Collected Cookies:\n${cookieString}`);
+
+    pkgLogger.info('Browser will remain open for manual inspection. Close it manually to terminate.');
+    await new Promise(() => {}); // Keep script alive
+  } catch (err: any) {
+    pkgLogger.error(`Error in testClipApi: ${err.message}`);
+    throw err;
   }
 }
