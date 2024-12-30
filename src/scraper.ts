@@ -133,6 +133,7 @@ export async function scrapeKickPage(
     throw error;
   }
 }
+
 async function autoScroll(page: Page, maxScrolls: number): Promise<void> {
   console.log('Starting autoScroll...');
   // Wait for 3 seconds before starting the scrolling
@@ -140,25 +141,14 @@ async function autoScroll(page: Page, maxScrolls: number): Promise<void> {
   console.log('Waited 3 seconds before starting scrolling.');
 
   try {
-    // Log some relevant metrics before going into page.evaluate
-    const { width, height } = (await page.viewport()) || { width: null, height: null };
-    console.log(`Viewport width: ${width}, height: ${height}`);
-
-    // Evaluate scroll logic in the browser context
     await page.evaluate(
       async (scrollLimit: number) => {
-        console.log('Inside page.evaluate for scrolling...');
-
-        // Grab the container by ID
+        // Target the scrollable container
         const container = document.querySelector<HTMLElement>('#main-container');
         if (!container) {
-          console.log('No element found with ID #main-container');
+          console.error('Error: No element found with ID #main-container');
           return;
         }
-
-        // Log container-side metrics before scrolling
-        console.log(`container.scrollHeight: ${container.scrollHeight}`);
-        console.log(`container.clientHeight: ${container.clientHeight}`);
 
         await new Promise<void>((resolve) => {
           let totalHeight = 0;
@@ -166,35 +156,21 @@ async function autoScroll(page: Page, maxScrolls: number): Promise<void> {
           let scrollCount = 0;
 
           const timer = setInterval(() => {
-            // Each iteration, log key metrics
-            console.log(`\nScroll iteration: ${scrollCount + 1}`);
-            const scrollHeight = container.scrollHeight;
-            console.log(`  scrollHeight: ${scrollHeight}`);
-            console.log(`  totalHeight so far: ${totalHeight}`);
-            console.log(`  container.clientHeight: ${container.clientHeight}`);
-
-            // Perform the actual scroll on the container
+            scrollCount++;
             container.scrollBy(0, distance);
             totalHeight += distance;
-            scrollCount++;
 
-            // Evaluate if we've reached bottom or exceeded scroll limit
-            const bottomReached = totalHeight >= (scrollHeight - container.clientHeight);
+            const bottomReached = totalHeight >= (container.scrollHeight - container.clientHeight);
             const limitReached = scrollCount >= scrollLimit;
 
-            console.log(
-              `  bottomReached=${bottomReached}, limitReached=${limitReached}`
-            );
+            console.log(`Scroll step: ${scrollCount}, Bottom reached: ${bottomReached}`);
 
             if (bottomReached || limitReached) {
-              console.log(`Stopping scroll at iteration ${scrollCount}...`);
               clearInterval(timer);
               resolve();
             }
           }, 200);
         });
-
-        console.log('Completed scrolling inside page.evaluate.');
       },
       maxScrolls
     );
@@ -209,20 +185,23 @@ export async function testClipApi(logger?: Logger): Promise<void> {
   const testUrl = `${BASE_URL}/browse/clips?sort=view&range=day`;
 
   try {
-    pkgLogger.info('Launching Puppeteer in GUI mode with stealth plugin...');
+    pkgLogger.info('Launching Puppeteer in headless GUI mode with stealth plugin...');
 
-    // Launch in headful mode for debugging
+    // Launch in headless mode with GUI-like behavior
     const browser = await puppeteer.launch({
-      headless: false,
-      defaultViewport: {
-        width: 1280,
-        height: 800,
-      },
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      headless: true,
+      defaultViewport: null, // Ensures no artificial viewport is applied
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--start-maximized', // Mimic maximized window
+        '--disable-infobars', // Remove "Chrome is being controlled by automation" bar
+        '--disable-dev-shm-usage',
+      ],
     });
     const page = await browser.newPage();
 
-    // Forward browser console logs to Node
+    // Forward browser console logs to Node console
     page.on('console', (msg) => {
       console.log(`BROWSER LOG: ${msg.type()} => ${msg.text()}`);
     });
@@ -265,8 +244,8 @@ export async function testClipApi(logger?: Logger): Promise<void> {
     const cookieString = allCookies.map((c) => `${c.name}=${c.value}`).join('; ');
     pkgLogger.info(`Collected Cookies:\n${cookieString}`);
 
-    pkgLogger.info('Browser will remain open for manual inspection. Close it manually to terminate.');
-    await new Promise(() => {}); // Keep script alive
+    pkgLogger.info('Closing browser after scraping...');
+    await browser.close();
   } catch (err: any) {
     pkgLogger.error(`Error in testClipApi: ${err.message}`);
     throw err;
