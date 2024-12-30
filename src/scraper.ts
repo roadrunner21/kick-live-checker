@@ -323,13 +323,13 @@ export async function testClipApi(logger?: Logger): Promise<void> {
       pkgLogger.warn('No API request to /api/v2/clips was captured.');
     } else {
       pkgLogger.info('Replicating the captured request with Axios...');
-      await replicateClipApiRequest(
+      await replicateClipApiRequestFetchPuppeteer(
+        page, // The Puppeteer page instance
         capturedRequestInfo.url,
         capturedRequestInfo.method,
         capturedRequestInfo.headers,
-        cookieString,
         capturedRequestInfo.postData || null,
-        pkgLogger
+        logger
       );
     }
 
@@ -342,72 +342,49 @@ export async function testClipApi(logger?: Logger): Promise<void> {
 }
 
 /**
- * This function attempts to replicate the Puppeteer request EXACTLY.
- * We inject:
- *   - the same method (GET, POST, etc.)
- *   - the same headers (plus any forced overrides)
- *   - the same cookies
- *   - any post data (for POST, PUT, etc.)
+ * Replicates the Puppeteer / Browser request as a fetch call
  */
-async function replicateClipApiRequest(
+async function replicateClipApiRequestFetchPuppeteer(
+  page: Page,
   url: string,
   method: string,
-  originalHeaders: Record<string, string>,
-  cookieString: string,
-  postData: string | null,
-  logger: Logger
+  headers: Record<string, string>,
+  body: string | null,
+  logger: Logger | undefined
 ): Promise<void> {
+  const log = logger || initializeLogger(); // Fallback to default logger if `logger` is undefined
   try {
-    // Start with the raw headers from Puppeteer’s interception
-    const finalHeaders: Record<string, string> = { ...originalHeaders };
-
-    // Force some known “important” overrides if needed
-    // e.g. Kick often requires full acceptance and same user-agent
-    finalHeaders['User-Agent'] = finalHeaders['user-agent'] || finalHeaders['User-Agent'] || '';
-    finalHeaders['Accept'] = finalHeaders['accept'] || '*/*'; // or 'application/json, text/plain, */*'
-    finalHeaders['Cookie'] = cookieString; // The big one: ensure we pass the final browser cookies
-    finalHeaders['Accept-Language'] ||= 'en-GB,en;q=0.9,en;q=0.8';
-    finalHeaders['sec-ch-ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A.Brand";v="24"';
-    finalHeaders['sec-ch-ua-mobile'] = '?0';
-    finalHeaders['sec-ch-ua-platform'] = '"macOS"';
-    finalHeaders['sec-fetch-dest'] = 'empty';
-    finalHeaders['sec-fetch-mode'] = 'cors';
-    finalHeaders['sec-fetch-site'] = 'same-origin';
-    finalHeaders['rsc'] = '1';
-    finalHeaders['priority'] = 'u=1, i';
-
-    // If the site uses DNT or sec-ch- headers from cURL:
-    // Make sure they exist or set them forcibly (if `request.headers()` didn’t pick them up)
-    if (!finalHeaders['dnt']) {
-      finalHeaders['dnt'] = '1';
-    }
-    // same logic for any others like 'sec-ch-ua', 'sec-ch-ua-mobile', etc.
-
-    // Clean up leftover lower-cased keys vs. Title-Case
-    // (Axios is okay with either, but some servers can be picky.)
-    // Usually it's fine to leave them as-lowercased though.
-
-    logger.info(`Making replicated ${method} request to ${url} with Axios...`);
-    logger.info(`Headers to be sent:\n${JSON.stringify(finalHeaders, null, 2)}`);
-
-    const axiosConfig = {
+    const result = await page.evaluate(
+      async (fetchUrl, fetchMethod, fetchHeaders, fetchBody) => {
+        try {
+          const response = await fetch(fetchUrl, {
+            method: fetchMethod,
+            headers: fetchHeaders,
+            body: fetchMethod === 'POST' || fetchMethod === 'PUT' ? fetchBody : null,
+          });
+          const responseBody = await response.text();
+          return {
+            status: response.status,
+            statusText: response.statusText,
+            body: responseBody,
+          };
+        } catch (err) {
+          return { error: (err as Error).message }; // Explicitly cast `err` as Error
+        }
+      },
       url,
-      method: method.toLowerCase() as 'get' | 'post' | 'put' | 'delete',
-      headers: finalHeaders,
-      // If it was a POST or PUT, we’d supply `data: postData`,
-      // but for GET / HEAD, typically not needed
-    } as any;
-
-    if (method.toUpperCase() !== 'GET' && postData) {
-      axiosConfig.data = postData;
-    }
-
-    const response = await axios(axiosConfig);
-    logger.info(`[Axios Response] Status: ${response.status}`);
-    logger.info(
-      `[Axios Response Body]: ${JSON.stringify(response.data, null, 2).slice(0, 300)}...`
+      method,
+      headers,
+      body
     );
-  } catch (error: any) {
-    logger.error(`Failed to replicate request with Axios. Error: ${error.message}`);
+
+    if (result.error) {
+      log.error(`[Puppeteer Fetch] Error: ${result.error}`);
+    } else {
+      log.info(`[Puppeteer Fetch] Status: ${result.status} ${result.statusText}`);
+      log.info(`[Puppeteer Fetch] Response Body Snippet: ${result.body?.slice(0, 300)}...`);
+    }
+  } catch (error) {
+    log.error(`Failed to replicate request with Puppeteer fetch. Error: ${(error as Error).message}`);
   }
 }
