@@ -322,18 +322,27 @@ export async function testClipApi(logger?: Logger): Promise<void> {
     if (!capturedRequestInfo) {
       pkgLogger.warn('No API request to /api/v2/clips was captured.');
     } else {
-      pkgLogger.info('Replicating the captured request with Axios...');
-      await replicateClipApiRequestFetchPuppeteer(
-        page, // The Puppeteer page instance
+      pkgLogger.info('Starting Puppeteer fetch operation...');
+      const result = await replicateClipApiRequestFetchPuppeteer(
+        page,
         capturedRequestInfo.url,
         capturedRequestInfo.method,
         capturedRequestInfo.headers,
         capturedRequestInfo.postData || null,
         logger
       );
+      pkgLogger.info('Puppeteer fetch operation completed.');
     }
 
     pkgLogger.info('Closing browser after scraping...');
+    await page.waitForNetworkIdle({
+      // Puppeteer has a built-in waitForNetworkIdle in some versions,
+      // or a combination of waitForRequest/waitForResponse approach
+      idleTime: 2000, // Wait for 2 seconds of no network traffic
+      timeout: 10000,
+    });
+
+// Then close the browser
     await browser.close();
   } catch (err: any) {
     pkgLogger.error(`Error in testClipApi: ${err.message}`);
