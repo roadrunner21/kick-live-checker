@@ -48,6 +48,36 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)';
 const LAST_RESPONSE_FILE = path.join(__dirname, '..', 'last_response.html');
 const ERROR_RESPONSE_FILE = path.join(__dirname, '..', 'error_response.html');
 
+export async function resolveCloudflare(page: Page, logger: Logger): Promise<boolean> {
+  logger.info('Checking for Cloudflare challenge...');
+
+  // 1. Check the page title for the common "Just a moment" Cloudflare message.
+  const pageTitle = await page.title();
+  if (pageTitle.includes('Just a moment')) {
+    logger.warn('Cloudflare detected: Page title contains "Just a moment." Waiting 2s for possible redirect...');
+
+    // 2. Wait a bit in case Cloudflare auto-redirects the user after verification.
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // 3. Check for the challenge paragraph text on the page.
+    const hasChallengeText = await page.evaluate(() => {
+      const paragraph = document.querySelector('p');
+      if (!paragraph) return false;
+      return paragraph.textContent?.includes('Verify you are human by completing the action below') || false;
+    });
+
+    if (hasChallengeText) {
+      logger.error('Cloudflare challenge found: "Verify you are human..." text is present. Aborting...');
+      return false;
+    }
+  }
+
+  // If we got here, Cloudflare challenge was not detected.
+  logger.info('No Cloudflare challenge detected.');
+  return true;
+}
+// ------------------------------------------------------------------------- //
+
 export async function scrapeKickPage(
   options: ScraperOptions = {}
 ): Promise<ClipData[] | ChannelPageData> {
@@ -232,6 +262,15 @@ export async function testClipApi(logger?: Logger): Promise<void> {
 
     pkgLogger.info(`Navigating to ${testUrl}...`);
     await page.goto(testUrl, { waitUntil: 'networkidle2' });
+
+    // ------------------ Cloudflare resolution step ------------------ //
+    const resolved = await resolveCloudflare(page, pkgLogger);
+    if (!resolved) {
+      pkgLogger.warn('Aborting due to Cloudflare challenge.');
+      await browser.close();
+      return;
+    }
+    // ---------------------------------------------------------------- //
 
     pkgLogger.info('Performing scrolling...');
     await autoScroll(page, 50);
