@@ -12,7 +12,7 @@ export class Api {
     this.logger = options?.logger || initializeLogger();
   }
 
-  async getClips(params: { sort: string, range: string }): Promise<void> {
+  async getClips(params: { sort: string, range: string }): Promise<string> {
     try {
       await this.sessionManager.ensureValidSession();
 
@@ -21,8 +21,7 @@ export class Api {
 
       const capturedRequest = this.sessionManager.getCapturedRequest();
       if (!capturedRequest) {
-        this.logger.warn('No API request to /api/v2/clips was captured.');
-        return;
+        throw new SessionError('No API request to /api/v2/clips was captured.');
       }
 
       const response = await this.sessionManager.makeRequest(
@@ -32,9 +31,9 @@ export class Api {
         capturedRequest.postData || null
       );
 
-      this.logger.info(`[API Response] Status: ${response.status} ${response.statusText}`);
-      this.logger.info(`[API Response] Body snippet: ${response.body.slice(0, 300)}...`);
+      this.logger.debug(`[API Response] Status: ${response.status} ${response.statusText}`);
 
+      return response.body;
     } catch (error) {
       throw new SessionError(
         'Failed to get clips',

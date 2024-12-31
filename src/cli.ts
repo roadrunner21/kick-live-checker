@@ -13,23 +13,28 @@ const runCLI = async () => {
     console.log('  node src/cli.ts [options]');
     console.log('\nOptions:');
     console.log('  --clips       Get the clips (e.g. top daily clips)');
+    console.log('  --debug       Enable debug logging');
     console.log('\nExample:');
-    console.log('  node src/cli.ts --clips\n');
+    console.log('  node src/cli.ts --clips');
+    console.log('  node src/cli.ts --clips --debug\n');
     process.exit(0);
   }
 
-  const logger = initializeLogger({ enableLogging: true });
+  const debug = args.includes('--debug');
+  const logger = initializeLogger({ enableLogging: debug });
   const sessionManager = new SessionManager({ logger });
   const api = new Api(sessionManager, { logger });
 
   try {
-    // Check if user wants to get clips
     if (args.includes('--clips')) {
-      await api.getClips({ sort: 'view', range: 'day' });
+      const response = await api.getClips({ sort: 'view', range: 'day' });
+      // Only print the response body if not in debug mode
+      if (!debug) {
+        console.log(response);
+      }
       process.exit(0);
     }
 
-    // If we get here, no valid option was provided
     console.log('\nInvalid or missing options.\n');
     console.log('Try `node src/cli.ts --clips` to get clips.\n');
     process.exit(1);

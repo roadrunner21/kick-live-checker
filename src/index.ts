@@ -3,38 +3,52 @@
 /**
  * The main entry point for the CLI and the package export.
  */
-import { scrapeKickPage } from './scraper';
+import { Api } from './Api';
+import { SessionManager, SessionError, CloudflareError } from './SessionManager';
 import { initializeLogger } from './logger';
 
 /**
- * If this script is run directly from the CLI (e.g., `node index.js <option>`),
- * we parse the arguments and run a scraping test.
+ * If this script is run directly from the CLI, handle command line usage
  */
 if (require.main === module) {
-  const scrapeClips = process.argv.includes('--clips');
+  const args = process.argv.slice(2);
+  const debug = args.includes('--debug');
+  const scrapeClips = args.includes('--clips');
 
   if (!scrapeClips) {
-    console.error('Please provide a valid option:');
-    console.error('  node index.js --clips (to scrape clips)');
+    console.error('\nPlease provide a valid option:');
+    console.error('  node index.js --clips     (to get clips)');
+    console.error('  node index.js --clips --debug     (to get clips with debug output)\n');
     process.exit(1);
   }
 
-  // Initialize a logger for CLI usage
-  const logger = initializeLogger({ enableLogging: true });
+  // Initialize components
+  const logger = initializeLogger({ enableLogging: debug });
+  const sessionManager = new SessionManager({ logger });
+  const api = new Api(sessionManager, { logger });
 
-  scrapeKickPage({ customLogger: logger, scrapeClips })
-    .then((data) => {
-      logger.info('Scraped data successfully:');
-      console.log(JSON.stringify(data, null, 2));
+  // Execute the requested operation
+  api.getClips({ sort: 'view', range: 'day' })
+    .then((response) => {
+      if (!debug) {
+        console.log(response);
+      }
     })
     .catch((err) => {
-      logger.error(`Failed to scrape: ${err.message}`);
+      logger.error(`Failed to get clips: ${err.message}`);
       process.exit(1);
+    })
+    .finally(() => {
+      sessionManager.dispose();
     });
 }
 
 /**
- * Export scraper functionality for importing in other projects.
+ * Export functionality for importing in other projects
  */
-export { scrapeKickPage, testClipApi } from './scraper';
+export { Api } from './Api';
+export { SessionManager, SessionError, CloudflareError } from './SessionManager';
 export { initializeLogger } from './logger';
+
+// Also export interfaces that might be needed by consumers
+export type { RequestResponse, CapturedRequestInfo } from './SessionManager';

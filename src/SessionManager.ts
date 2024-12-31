@@ -50,7 +50,7 @@ export class SessionManager {
   private async resolveCloudflare(): Promise<void> {
     if (!this.page) throw new SessionError('No page available');
 
-    this.logger.info('Checking for Cloudflare challenge...');
+    this.logger.debug('Checking for Cloudflare challenge...');
     const pageTitle = await this.page.title();
 
     if (pageTitle.includes('Just a moment')) {
@@ -69,13 +69,13 @@ export class SessionManager {
       }
     }
 
-    this.logger.info('No Cloudflare challenge detected.');
+    this.logger.debug('No Cloudflare challenge detected.');
   }
 
   private async autoScroll(maxScrolls: number): Promise<void> {
     if (!this.page) throw new SessionError('No page available');
 
-    this.logger.info('Starting autoScroll...');
+    this.logger.debug('Starting autoScroll...');
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     try {
@@ -123,12 +123,12 @@ export class SessionManager {
     await this.page.setRequestInterception(true);
 
     this.page.on('console', (msg) => {
-      this.logger.info(`BROWSER LOG: ${msg.type()} => ${msg.text()}`);
+      this.logger.debug(`BROWSER LOG: ${msg.type()} => ${msg.text()}`);
     });
 
     this.page.on('request', async (req) => {
       if (req.url().includes('/api/v2/clips')) {
-        this.logger.info(`[REQUEST INTERCEPTED] ${req.method()} => ${req.url()}`);
+        this.logger.debug(`[REQUEST INTERCEPTED] ${req.method()} => ${req.url()}`);
 
         this.capturedRequestInfo = {
           url: req.url(),
@@ -137,7 +137,7 @@ export class SessionManager {
           postData: req.postData(),
         };
 
-        this.logger.info(
+        this.logger.debug(
           `Intercepted Headers: ${JSON.stringify(this.capturedRequestInfo.headers, null, 2)}`
         );
       }
@@ -148,8 +148,8 @@ export class SessionManager {
       if (res.url().includes('/api/v2/clips')) {
         try {
           const textBody = await res.text();
-          this.logger.info(`[RESPONSE] => ${res.url()} [Status: ${res.status()}]`);
-          this.logger.info(`Body snippet: ${textBody.slice(0, 300)}...`);
+          this.logger.debug(`[RESPONSE] => ${res.url()} [Status: ${res.status()}]`);
+          this.logger.debug(`Body snippet: ${textBody.slice(0, 300)}...`);
         } catch (err) {
           this.logger.warn(`Failed to parse response from ${res.url()}. Error: ${err}`);
         }
@@ -183,14 +183,14 @@ export class SessionManager {
   async navigateToPage(url: string): Promise<void> {
     if (!this.page) throw new SessionError('No page available');
 
-    this.logger.info(`Navigating to ${url}...`);
+    this.logger.debug(`Navigating to ${url}...`);
     await this.page.goto(url, { waitUntil: 'networkidle2' });
     await this.resolveCloudflare();
     await this.autoScroll(50);
 
     const htmlContent = await this.page.content();
     fs.writeFileSync(RESPONSE_FILES.LAST_RESPONSE, htmlContent, 'utf8');
-    this.logger.info(`Saved HTML content to ${RESPONSE_FILES.LAST_RESPONSE}`);
+    this.logger.debug(`Saved HTML content to ${RESPONSE_FILES.LAST_RESPONSE}`);
   }
 
   async makeRequest(url: string, method: string, headers?: Record<string, string>, body?: string | null): Promise<RequestResponse> {
