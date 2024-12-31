@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { scrapeKickPage, testClipApi } from './scraper';
+import { Api } from './Api';
+import { SessionManager } from './SessionManager';
 import { initializeLogger } from './logger';
 
 const runCLI = async () => {
@@ -11,40 +12,33 @@ const runCLI = async () => {
     console.log('\nUsage:');
     console.log('  node src/cli.ts [options]');
     console.log('\nOptions:');
-    console.log('  --clips       Scrape the clips page (e.g. top daily clips)');
-    console.log('  --test        Test grabbing Bearer token/cookies and calling the Kick API directly');
+    console.log('  --clips       Get the clips (e.g. top daily clips)');
     console.log('\nExample:');
-    console.log('  node src/cli.ts --clips');
-    console.log('  node src/cli.ts --test\n');
+    console.log('  node src/cli.ts --clips\n');
     process.exit(0);
   }
 
   const logger = initializeLogger({ enableLogging: true });
+  const sessionManager = new SessionManager({ logger });
+  const api = new Api(sessionManager, { logger });
 
   try {
-    if (args.includes('--test')) {
-      // Run the test function that fetches Bearer token/cookies and calls the API
-      const apiData = await testClipApi(logger);
-      console.log('\n=== Kick API Response ===');
-      console.log(JSON.stringify(apiData, null, 2));
+    // Check if user wants to get clips
+    if (args.includes('--clips')) {
+      await api.getClips({ sort: 'view', range: 'day' });
       process.exit(0);
     }
 
-    // Otherwise, check if user wants to scrape the clips page
-    const scrapeClips = args.includes('--clips');
-    if (!scrapeClips) {
-      console.log('\nInvalid or missing options.\n');
-      console.log('Try `node src/cli.ts --clips` to scrape the clips page.');
-      console.log('Or `node src/cli.ts --test` to test API call.\n');
-      process.exit(0);
-    }
+    // If we get here, no valid option was provided
+    console.log('\nInvalid or missing options.\n');
+    console.log('Try `node src/cli.ts --clips` to get clips.\n');
+    process.exit(1);
 
-    // If user used the `--clips` flag
-    const data = await scrapeKickPage({ customLogger: logger, scrapeClips });
-    console.log(JSON.stringify(data, null, 2));
   } catch (err: any) {
     logger.error(`Error: ${err.message}`);
     process.exit(1);
+  } finally {
+    await sessionManager.dispose();
   }
 };
 
