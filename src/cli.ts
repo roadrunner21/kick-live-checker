@@ -28,7 +28,7 @@ const runCLI = async () => {
 
   try {
     if (args.includes('--clips')) {
-      const response: GetClipsResponse = await api.getClips({sort: 'view', range: 'day'});
+      const response: GetClipsResponse = await api.getClips({ sort: 'view', time: 'day' });
 
       console.log(response);
       process.exit(0);

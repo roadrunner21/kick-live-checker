@@ -3,21 +3,25 @@ import { initializeLogger } from './logger';
 import { BASE_URL } from './constants';
 import { SessionManager, SessionError } from './SessionManager';
 import { GetClipsResponse } from "./types/ClipResponse";
+import { UrlBuilder } from './urlBuilder';
+import { EndpointParams } from "./types/ApiTypes";
 
 export class Api {
   private sessionManager: SessionManager;
   private logger: Logger;
+  private urlBuilder: UrlBuilder;
 
   constructor(sessionManager: SessionManager, options?: { logger?: Logger }) {
     this.sessionManager = sessionManager;
     this.logger = options?.logger || initializeLogger();
+    this.urlBuilder = new UrlBuilder('https://kick.com');
   }
 
-  async getClips(params: { sort: string; range: string }): Promise<GetClipsResponse> {
+  async getClips(params: EndpointParams<'clips'>): Promise<GetClipsResponse> {
     try {
       await this.sessionManager.ensureValidSession();
 
-      const url = `${BASE_URL}/browse/clips?sort=${params.sort}&range=${params.range}`;
+      const url = this.urlBuilder.buildUrl('clips', params);
       await this.sessionManager.navigateToPage(url);
 
       const capturedRequest = this.sessionManager.getCapturedRequest();
@@ -26,20 +30,16 @@ export class Api {
       }
 
       const response = await this.sessionManager.makeRequest(
-        capturedRequest.url,
+        url,
         capturedRequest.method,
         capturedRequest.headers,
         capturedRequest.postData || null
       );
 
       this.logger.debug(`[API Response] Status: ${response.status} ${response.statusText}`);
-
       return JSON.parse(response.body) as GetClipsResponse;
     } catch (error) {
-      throw new SessionError(
-        'Failed to get clips',
-        error instanceof Error ? error : undefined
-      );
+      throw new SessionError('Failed to get clips', error instanceof Error ? error : undefined);
     }
   }
 }
