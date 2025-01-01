@@ -2,6 +2,7 @@ import { Logger } from 'winston';
 import { initializeLogger } from './logger';
 import { BASE_URL } from './constants';
 import { SessionManager, SessionError } from './SessionManager';
+import { GetClipsResponse } from "./types/ClipResponse";
 
 export class Api {
   private sessionManager: SessionManager;
@@ -12,7 +13,7 @@ export class Api {
     this.logger = options?.logger || initializeLogger();
   }
 
-  async getClips(params: { sort: string, range: string }): Promise<string> {
+  async getClips(params: { sort: string; range: string }): Promise<GetClipsResponse> {
     try {
       await this.sessionManager.ensureValidSession();
 
@@ -33,7 +34,7 @@ export class Api {
 
       this.logger.debug(`[API Response] Status: ${response.status} ${response.statusText}`);
 
-      return response.body;
+      return JSON.parse(response.body) as GetClipsResponse;
     } catch (error) {
       throw new SessionError(
         'Failed to get clips',

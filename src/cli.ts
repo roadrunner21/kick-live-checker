@@ -3,6 +3,7 @@
 import { Api } from './Api';
 import { SessionManager } from './SessionManager';
 import { initializeLogger } from './logger';
+import { GetClipsResponse } from "./types/ClipResponse";
 
 const runCLI = async () => {
   const args = process.argv.slice(2);
@@ -21,17 +22,15 @@ const runCLI = async () => {
   }
 
   const debug = args.includes('--debug');
-  const logger = initializeLogger({ enableLogging: debug });
-  const sessionManager = new SessionManager({ logger });
-  const api = new Api(sessionManager, { logger });
+  const logger = initializeLogger({enableLogging: debug});
+  const sessionManager = new SessionManager({logger});
+  const api = new Api(sessionManager, {logger});
 
   try {
     if (args.includes('--clips')) {
-      const response = await api.getClips({ sort: 'view', range: 'day' });
-      // Only print the response body if not in debug mode
-      if (!debug) {
-        console.log(response);
-      }
+      const response: GetClipsResponse = await api.getClips({sort: 'view', range: 'day'});
+
+      console.log(response);
       process.exit(0);
     }
 
