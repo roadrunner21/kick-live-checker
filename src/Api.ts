@@ -1,7 +1,5 @@
-// api.ts
 import { Logger } from 'winston';
 import { initializeLogger } from './logger';
-import { BASE_URL } from './constants';
 import {
   SessionManager,
   SessionError
@@ -48,9 +46,9 @@ export class Api {
 
       // Enhanced logging with request number if provided
       const requestLabel = requestNumber ? `[Request ${requestNumber}]` : '';
-      console.log(`${requestLabel} Count clips: ${finalResponse.clips.length}`);
+      this.logger.info(`${requestLabel} Count clips: ${finalResponse.clips.length}`);
       if (finalResponse.nextCursor) {
-        console.log(`${requestLabel} Next cursor: ${finalResponse.nextCursor}`);
+        this.logger.info(`${requestLabel} Next cursor: ${finalResponse.nextCursor}`);
       }
 
       return finalResponse;
@@ -60,7 +58,7 @@ export class Api {
   }
 
   async getClipsWithLimit(params: EndpointParams<'clips'>, limit: number = 20): Promise<GetClipsResponse> {
-    console.log(`\nFetching up to ${limit} clips...`);
+    this.logger.info(`\nFetching up to ${limit} clips...`);
 
     let response: GetClipsResponse = {
       clips: [],
@@ -76,7 +74,7 @@ export class Api {
         ...(currentCursor ? {cursor: currentCursor} : {})
       };
 
-      console.log(`\nMaking request ${i + 1} of up to ${requestsNeeded}...`);
+      this.logger.info(`\nMaking request ${i + 1} of up to ${requestsNeeded}...`);
       const newResponse = await this.getClips(currentParams, i + 1);
 
       // Merge the new clips with existing ones
@@ -89,11 +87,11 @@ export class Api {
       currentCursor = newResponse.nextCursor;
       response.nextCursor = currentCursor;
 
-      console.log(`Total clips so far: ${response.clips.length}`);
+      this.logger.info(`Total clips so far: ${response.clips.length}`);
 
       // If there's no next cursor, we've reached the end
       if (!currentCursor) {
-        console.log('No more clips available from the API');
+        this.logger.info('No more clips available from the API');
         break;
       }
     }
@@ -101,10 +99,10 @@ export class Api {
     // Trim to exact limit if we went over
     if (response.clips.length > limit) {
       response.clips = response.clips.slice(0, limit);
-      console.log(`Trimmed result to ${limit} clips as requested`);
+      this.logger.info(`Trimmed result to ${limit} clips as requested`);
     }
 
-    console.log(`\nFetch complete. Retrieved ${response.clips.length} clips total\n`);
+    this.logger.info(`\nFetch complete. Retrieved ${response.clips.length} clips total\n`);
     return response;
   }
 }
