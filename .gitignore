@@ -1,15 +1,6 @@
 # Dependency directories
 node_modules/
 
-# Log files
-*.log
-
-# Temporary or debug response files
-last_response.html
-error_response.html
-test_response.html
-last_video_response.html
-
 # Temporary files
 tmp
 

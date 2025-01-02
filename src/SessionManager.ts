@@ -3,7 +3,11 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { Logger } from 'winston';
 import { initializeLogger } from './logger';
-import { USER_AGENT, BROWSER_ARGS, RESPONSE_FILES } from './constants';
+import {
+  USER_AGENT,
+  BROWSER_ARGS,
+  PATHS
+} from './constants';
 import fs from 'fs';
 
 puppeteer.use(StealthPlugin());
@@ -189,8 +193,8 @@ export class SessionManager {
     await this.autoScroll(50);
 
     const htmlContent = await this.page.content();
-    fs.writeFileSync(RESPONSE_FILES.LAST_RESPONSE, htmlContent, 'utf8');
-    this.logger.debug(`Saved HTML content to ${RESPONSE_FILES.LAST_RESPONSE}`);
+    fs.writeFileSync(PATHS.RESPONSES.LAST_RESPONSE, htmlContent, 'utf8');
+    this.logger.debug(`Saved HTML content to ${PATHS.RESPONSES.LAST_RESPONSE}`);
   }
 
   async makeRequest(url: string, method: string, headers?: Record<string, string>, body?: string | null): Promise<RequestResponse> {

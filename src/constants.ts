@@ -1,5 +1,9 @@
+// constants.ts
 import path from 'path';
 import { Logger } from "winston";
+
+// Create a central tmp directory configuration
+const TMP_DIR = path.join(__dirname, '..', 'tmp');
 
 // URLs
 export const BASE_URL = 'https://kick.com';
@@ -16,12 +20,23 @@ export const BROWSER_ARGS = [
 ];
 
 // File Paths
-export const RESPONSE_FILES = {
-  LAST_RESPONSE: path.join(__dirname, '..', 'last_response.html'),
-  ERROR_RESPONSE: path.join(__dirname, '..', 'error_response.html'),
+export const PATHS = {
+  TMP_DIR,
+  RESPONSES: {
+    LAST_RESPONSE: path.join(TMP_DIR, 'last_response.html'),
+    ERROR_RESPONSE: path.join(TMP_DIR, 'error_response.html'),
+  },
+  LOGS: path.join(TMP_DIR, 'logs'),
 } as const;
 
-// Data Interfaces
+// Ensure all necessary directories exist
+import { mkdirSync } from 'fs';
+export const ensureTmpDirectories = () => {
+  mkdirSync(PATHS.TMP_DIR, { recursive: true });
+  mkdirSync(PATHS.LOGS, { recursive: true });
+};
+
+// Data Interfaces (unchanged)
 export interface StreamerData {
   name: string;
   id: string;

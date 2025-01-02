@@ -1,12 +1,18 @@
+// logger.ts
 import { createLogger, format, transports, Logger } from 'winston';
 import path from 'path';
+import { PATHS } from './constants';
 
 interface LoggerOptions {
   customLogger?: Logger;
   enableLogging?: boolean;
 }
 
-const LOG_FILE = path.join(__dirname, '..', 'kick_scraper.log');
+// Generate a timestamp-based log filename
+const getLogFileName = (): string => {
+  const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+  return `kick_scraper_${timestamp}.log`;
+};
 
 export function initializeLogger(options: LoggerOptions = {}): Logger {
   const { customLogger, enableLogging } = options;
@@ -25,6 +31,8 @@ export function initializeLogger(options: LoggerOptions = {}): Logger {
       ]
     });
   }
+
+  const LOG_FILE = path.join(PATHS.LOGS, getLogFileName());
 
   // If logging is enabled, create a verbose logger
   return createLogger({
