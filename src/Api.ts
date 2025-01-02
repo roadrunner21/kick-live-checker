@@ -1,8 +1,15 @@
+// api.ts
 import { Logger } from 'winston';
 import { initializeLogger } from './logger';
 import { BASE_URL } from './constants';
-import { SessionManager, SessionError } from './SessionManager';
-import { GetClipsResponse } from "./types/ClipResponse";
+import {
+  SessionManager,
+  SessionError
+} from './SessionManager';
+import {
+  GetClipsResponse,
+  Clip
+} from "./types/ClipResponse";
 import { UrlBuilder } from './urlBuilder';
 import { EndpointParams } from "./types/ApiTypes";
 
@@ -17,7 +24,7 @@ export class Api {
     this.urlBuilder = new UrlBuilder('https://kick.com');
   }
 
-  async getClips(params: EndpointParams<'clips'>): Promise<GetClipsResponse> {
+  async getClips(params: EndpointParams<'clips'>, requestNumber?: number): Promise<GetClipsResponse> {
     try {
       await this.sessionManager.ensureValidSession();
 
@@ -37,9 +44,67 @@ export class Api {
       );
 
       this.logger.debug(`[API Response] Status: ${response.status} ${response.statusText}`);
-      return JSON.parse(response.body) as GetClipsResponse;
+      let finalResponse: GetClipsResponse = JSON.parse(response.body);
+
+      // Enhanced logging with request number if provided
+      const requestLabel = requestNumber ? `[Request ${requestNumber}]` : '';
+      console.log(`${requestLabel} Count clips: ${finalResponse.clips.length}`);
+      if (finalResponse.nextCursor) {
+        console.log(`${requestLabel} Next cursor: ${finalResponse.nextCursor}`);
+      }
+
+      return finalResponse;
     } catch (error) {
       throw new SessionError('Failed to get clips', error instanceof Error ? error : undefined);
     }
+  }
+
+  async getClipsWithLimit(params: EndpointParams<'clips'>, limit: number = 20): Promise<GetClipsResponse> {
+    console.log(`\nFetching up to ${limit} clips...`);
+
+    let response: GetClipsResponse = {
+      clips: [],
+      nextCursor: null
+    };
+
+    let currentCursor: string | null = null;
+    const requestsNeeded = Math.ceil(limit / 20);
+
+    for (let i = 0; i < requestsNeeded && response.clips.length < limit; i++) {
+      const currentParams = {
+        ...params,
+        ...(currentCursor ? {cursor: currentCursor} : {})
+      };
+
+      console.log(`\nMaking request ${i + 1} of up to ${requestsNeeded}...`);
+      const newResponse = await this.getClips(currentParams, i + 1);
+
+      // Merge the new clips with existing ones
+      response.clips = [
+        ...response.clips,
+        ...newResponse.clips
+      ];
+
+      // Update the cursor for the next iteration
+      currentCursor = newResponse.nextCursor;
+      response.nextCursor = currentCursor;
+
+      console.log(`Total clips so far: ${response.clips.length}`);
+
+      // If there's no next cursor, we've reached the end
+      if (!currentCursor) {
+        console.log('No more clips available from the API');
+        break;
+      }
+    }
+
+    // Trim to exact limit if we went over
+    if (response.clips.length > limit) {
+      response.clips = response.clips.slice(0, limit);
+      console.log(`Trimmed result to ${limit} clips as requested`);
+    }
+
+    console.log(`\nFetch complete. Retrieved ${response.clips.length} clips total\n`);
+    return response;
   }
 }

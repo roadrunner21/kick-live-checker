@@ -13,10 +13,12 @@ const runCLI = async () => {
     console.log('\nUsage:');
     console.log('  node src/cli.ts [options]');
     console.log('\nOptions:');
-    console.log('  --clips       Get the clips (e.g. top daily clips)');
-    console.log('  --debug       Enable debug logging');
+    console.log('  --clips              Get the clips (e.g. top daily clips)');
+    console.log('  --limit <number>     Number of clips to fetch (default: 20)');
+    console.log('  --debug              Enable debug logging');
     console.log('\nExample:');
     console.log('  node src/cli.ts --clips');
+    console.log('  node src/cli.ts --clips --limit 40');
     console.log('  node src/cli.ts --clips --debug\n');
     process.exit(0);
   }
@@ -28,8 +30,24 @@ const runCLI = async () => {
 
   try {
     if (args.includes('--clips')) {
-      const response: GetClipsResponse = await api.getClips({ sort: 'view', time: 'day' });
+      // Parse limit flag
+      const limitIndex = args.indexOf('--limit');
+      const limit = limitIndex !== -1
+        ? parseInt(args[limitIndex + 1], 10)
+        : 20;
 
+      // Validate limit
+      if (isNaN(limit) || limit < 1) {
+        console.error('Invalid limit value. Please provide a positive number.');
+        process.exit(1);
+      }
+
+      const response: GetClipsResponse = await api.getClipsWithLimit(
+        { sort: 'view', time: 'day' },
+        limit
+      );
+
+      console.log(`Retrieved ${response.clips.length} clips`);
       console.log(response);
       process.exit(0);
     }
