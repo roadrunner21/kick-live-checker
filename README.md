@@ -1,129 +1,199 @@
 # ts-kick-scraper
 
-A Node.js tool to scrape Kick.com for clips and streamer metadata in a structured JSON format.
+A Node.js library and CLI tool to scrape Kick.com clips in a structured JSON format.
 
 ## Table of Contents
 - [Installation](#installation)
+- [Features](#features)
 - [Usage](#usage)
-    - [As a Standalone Tool](#as-a-standalone-tool)
-    - [As a Dependency](#as-a-dependency)
-- [Example](#example)
+    - [As a Library](#as-a-library)
+    - [As a CLI Tool](#as-a-cli-tool)
+- [API Reference](#api-reference)
+- [Example Output](#example-output)
 - [Dependencies](#dependencies)
 - [License](#license)
 
----
-
 ## Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/ts-kick-scraper.git
-   ```
-
-2. Navigate to the project directory:
-   ```bash
-   cd ts-kick-scraper
-   ```
-
-3. Install the dependencies:
-   ```bash
-   npm install
-   ```
-
----
-
-## Usage
-
-### As a Standalone Tool
-
-To use `ts-kick-scraper` as a standalone CLI tool, you can execute specific scraping tasks from the command line.
-
-#### Check if a Channel is Live
-Run the following command with the Kick channel name as an argument:
-
-```bash
-node index.js <channelName>
-```
-
-Replace `<channelName>` with the name of the Kick channel you want to check.
-
-Example:
-```bash
-node index.js xqc
-```
-
-### As a Dependency
-
-To integrate `ts-kick-scraper` into your project, first install it via npm:
-
+### As a library in your project:
 ```bash
 npm install ts-kick-scraper
 ```
 
-Then, import and use it in your code. For example, checking a channel's live status:
-
-```javascript
-const { checkChannelLiveStatus } = require('ts-kick-scraper');
-
-// Optional: Use your own logger
-const winston = require('winston');
-const customLogger = winston.createLogger({
-level: 'info',
-format: winston.format.simple(),
-transports: [new winston.transports.Console()]
-});
-
-checkChannelLiveStatus('xqc', { logger: customLogger })
-.then(result => {
-console.log(result);
-})
-.catch(error => {
-console.error(error);
-});
+### As a global CLI tool:
+```bash
+npm install -g ts-kick-scraper
 ```
 
-If you don't provide a custom logger, `ts-kick-scraper` will use its default logging configuration based on the `NODE_ENV` environment variable.
+### For development:
+```bash
+git clone https://github.com/yourusername/ts-kick-scraper.git
+cd ts-kick-scraper
+npm install
+npm run build
+```
 
----
+## Features
+
+- Fetch clips from Kick.com with pagination support
+- Configure clip limits (defaults to 20)
+- Debug mode for detailed logging
+- Support for sorting and time range filters
+- Automatic Cloudflare challenge handling
+- Temporary file storage for responses and logs
+
+## Usage
+
+### As a Library
+
+```typescript
+import { KickScraper } from 'ts-kick-scraper';
+
+// Initialize with debug mode (optional)
+const scraper = new KickScraper({ debug: true });
+
+// Get clips with default limit (20)
+const clips = await scraper.getClips({ 
+  sort: 'view', 
+  time: 'day' 
+});
+
+// Get clips with custom limit
+const moreClips = await scraper.getClips(
+  { sort: 'view', time: 'day' },
+  60  // will fetch 60 clips
+);
+```
+
+### As a CLI Tool
+
+Basic usage:
+```bash
+# Get default number of clips (20)
+kick-scraper --clips
+
+# Get specific number of clips
+kick-scraper --clips --limit 40
+
+# Enable debug logging
+kick-scraper --clips --debug
+```
+
+Show help:
+```bash
+kick-scraper
+```
+
+## API Reference
+
+### KickScraper Class
+
+#### Constructor Options
+```typescript
+interface KickScraperOptions {
+  debug?: boolean;    // Enable debug logging
+  logger?: Logger;    // Custom Winston logger instance
+}
+```
+
+#### Methods
+
+`getClips(params, limit?)`
+- `params`: Clip parameters (sort and time range)
+- `limit`: Optional number of clips to fetch (default: 20)
+- Returns: Promise<GetClipsResponse>
+
+### Parameters
+
+```typescript
+type ClipParams = {
+  sort: 'view' | 'recent' | 'trending';
+  time: 'day' | 'week' | 'month' | 'all';
+};
+```
 
 ## Example Output
 
-### When a Channel is Live
 ```json
 {
-"isLive": true,
-"channelName": "xQc",
-"title": "🛑LIVE🛑LIVE🛑LIVE🛑LIVE🛑DRAMA🛑STUFF🛑AHHHHHHHHH🛑",
-"channelUrl": "https://kick.com/xqc"
+  "clips": [
+    {
+      "id": "clip_123",
+      "title": "Amazing play!",
+      "clip_url": "https://kick.com/clip/123",
+      "thumbnail_url": "https://...",
+      "views": 1500,
+      "duration": 30,
+      "created_at": "2025-01-02T15:30:45Z",
+      "channel": {
+        "username": "streamer123",
+        "profile_picture": "https://..."
+      }
+    }
+    // ... more clips
+  ],
+  "nextCursor": "clip_124"
 }
 ```
-
-### When a Channel is Not Live
-```json
-{
-"isLive": false,
-"channelUrl": "https://kick.com/xqc"
-}
-```
-
----
 
 ## Dependencies
 
-This project relies on the following Node.js packages:
-- `puppeteer`: For web scraping and browser automation.
-- `winston`: For structured logging and debugging.
-
----
+- `puppeteer-extra`: Web scraping and browser automation
+- `puppeteer-extra-plugin-stealth`: Bypass detection
+- `winston`: Logging system
+- `typescript`: Type safety and development
 
 ## License
 
-This project is licensed under the [Prosperity Public License](./LICENSE). You are free to use this software for non-commercial purposes. For commercial use, please contact the author for permission or refer to the terms in the license.
+This project is licensed under the [MIT License](./LICENSE).
 
----
+## Development
 
-## Next Steps
+### Project Structure
+```
+.
+├── src/
+│   ├── types/
+│   │   ├── ApiTypes.ts     # API type definitions
+│   │   └── ClipResponse.ts # Clip response interfaces
+│   ├── Api.ts             # Core API implementation
+│   ├── SessionManager.ts  # Browser session handling
+│   ├── apiEndpoints.ts    # API endpoint configurations
+│   ├── cli.ts            # CLI implementation
+│   ├── constants.ts      # Configuration constants
+│   ├── index.ts         # Main library exports
+│   ├── logger.ts        # Logging setup
+│   ├── scraper.ts       # Main scraper logic
+│   └── urlBuilder.ts    # URL construction utilities
+├── tmp/                # Temporary files (git-ignored)
+│   ├── last_response.html
+│   └── *.json         # Clip response files
+├── package.json
+├── tsconfig.json
+├── eslint.config.mjs
+└── README.md
+```
 
-- Adding functions to scrape clip data from Kick.com.
-- Support for scheduling periodic scraping tasks.
-- Enhancing integration with external APIs.
+### Key Files
+- `src/index.ts`: Main entry point and exports for the library
+- `src/cli.ts`: Command-line interface implementation
+- `src/Api.ts`: Core API implementation for interacting with Kick.com
+- `src/SessionManager.ts`: Manages browser sessions and handles Cloudflare
+- `src/types/`: TypeScript interfaces and type definitions
+- `tmp/`: Temporary storage for responses and logs (git-ignored)
+
+### Building
+
+```bash
+npm run build
+```
+
+### Running Tests
+
+```bash
+npm test
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
