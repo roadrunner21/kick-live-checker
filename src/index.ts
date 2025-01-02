@@ -1,54 +1,44 @@
-#!/usr/bin/env node
-
-/**
- * The main entry point for the CLI and the package export.
- */
+// src/index.ts
+import { Logger } from 'winston';
 import { Api } from './Api';
 import { SessionManager, SessionError, CloudflareError } from './SessionManager';
 import { initializeLogger } from './logger';
+import { GetClipsResponse, Clip } from './types/ClipResponse';
+import { EndpointParams } from './types/ApiTypes';
 
-/**
- * If this script is run directly from the CLI, handle command line usage
- */
-if (require.main === module) {
-  const args = process.argv.slice(2);
-  const debug = args.includes('--debug');
-  const scrapeClips = args.includes('--clips');
-
-  if (!scrapeClips) {
-    console.error('\nPlease provide a valid option:');
-    console.error('  node index.js --clips     (to get clips)');
-    console.error('  node index.js --clips --debug     (to get clips with debug output)\n');
-    process.exit(1);
-  }
-
-  // Initialize components
-  const logger = initializeLogger({ enableLogging: debug });
-  const sessionManager = new SessionManager({ logger });
-  const api = new Api(sessionManager, { logger });
-
-  // Execute the requested operation
-  api.getClips({ sort: 'view', range: 'day' })
-    .then((response) => {
-      if (!debug) {
-        console.log(response);
-      }
-    })
-    .catch((err) => {
-      logger.error(`Failed to get clips: ${err.message}`);
-      process.exit(1);
-    })
-    .finally(() => {
-      sessionManager.dispose();
-    });
+export interface KickScraperOptions {
+  debug?: boolean;
+  logger?: Logger;
 }
 
-/**
- * Export functionality for importing in other projects
- */
-export { Api } from './Api';
-export { SessionManager, SessionError, CloudflareError } from './SessionManager';
-export { initializeLogger } from './logger';
+export class KickScraper {
+  private api: Api;
+  private sessionManager: SessionManager;
+  private logger: Logger;
 
-// Also export interfaces that might be needed by consumers
-export type { RequestResponse, CapturedRequestInfo } from './SessionManager';
+  constructor(options: KickScraperOptions = {}) {
+    this.logger = options.logger || initializeLogger({ enableLogging: options.debug });
+    this.sessionManager = new SessionManager({ logger: this.logger });
+    this.api = new Api(this.sessionManager, { logger: this.logger });
+  }
+
+  async getClips(params: EndpointParams<'clips'>, limit?: number): Promise<GetClipsResponse> {
+    try {
+      if (limit && limit > 0) {
+        return await this.api.getClipsWithLimit(params, limit);
+      }
+      return await this.api.getClips(params);
+    } finally {
+      await this.sessionManager.dispose();
+    }
+  }
+}
+
+// Export everything that might be needed by consumers
+export {
+  SessionError,
+  CloudflareError,
+  type GetClipsResponse,
+  type Clip,
+  type EndpointParams,
+};
