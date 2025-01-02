@@ -4,6 +4,8 @@ import { Api } from './Api';
 import { SessionManager } from './SessionManager';
 import { initializeLogger } from './logger';
 import { GetClipsResponse } from "./types/ClipResponse";
+import { writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 const runCLI = async () => {
   const args = process.argv.slice(2);
@@ -48,7 +50,24 @@ const runCLI = async () => {
       );
 
       console.log(`Retrieved ${response.clips.length} clips`);
-      console.log(response);
+
+      // Create output directory if it doesn't exist
+      const outputDir = join(__dirname, '..', 'tmp');
+      mkdirSync(outputDir, { recursive: true });
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `clips_${limit}_${timestamp}.json`;
+      const outputPath = join(outputDir, filename);
+
+      // Save full response to file
+      writeFileSync(
+        outputPath,
+        JSON.stringify(response, null, 2)
+      );
+
+      console.log(`\nFull response saved to: ${outputPath}`);
+
       process.exit(0);
     }
 

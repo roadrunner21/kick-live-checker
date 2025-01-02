@@ -10,6 +10,9 @@ error_response.html
 test_response.html
 last_video_response.html
 
+# Temporary files
+tmp
+
 # System files
 .DS_Store
 Thumbs.db
