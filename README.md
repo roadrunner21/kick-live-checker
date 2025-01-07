@@ -42,27 +42,34 @@ npm run build
 - Automatic Cloudflare challenge handling
 - Temporary file storage for responses and logs
 
+# ts-kick-scraper
+
+A Node.js library and CLI tool to scrape Kick.com clips in a structured JSON format.
+
+[Previous sections remain the same until Usage...]
+
 ## Usage
 
 ### As a Library
 
 ```typescript
-import { KickScraper } from 'ts-kick-scraper';
+import { KickScraper, ClipOptions } from 'ts-kick-scraper';
 
 // Initialize with debug mode (optional)
 const scraper = new KickScraper({ debug: true });
 
-// Get clips with default limit (20)
-const clips = await scraper.getClips({ 
-  sort: 'view', 
-  time: 'day' 
-});
+// Get clips with default parameters (sort: 'view', time: 'day', limit: 20)
+const clips = await scraper.getClips();
 
-// Get clips with custom limit
-const moreClips = await scraper.getClips(
-  { sort: 'view', time: 'day' },
-  60  // will fetch 60 clips
-);
+// Get clips with custom parameters
+const moreClips = await scraper.getClips({
+  sort: 'trending',
+  time: 'week'
+}, 60); // will fetch 60 clips
+
+// Access available options
+console.log('Available sort options:', ClipOptions.sort);
+console.log('Available time periods:', ClipOptions.time);
 ```
 
 ### As a CLI Tool
@@ -72,8 +79,8 @@ Basic usage:
 # Get default number of clips (20)
 kick-scraper --clips
 
-# Get specific number of clips
-kick-scraper --clips --limit 40
+# Get specific number of clips with sorting and time range
+kick-scraper --clips --limit 40 --sort trending --time week
 
 # Enable debug logging
 kick-scraper --clips --debug
@@ -98,18 +105,25 @@ interface KickScraperOptions {
 
 #### Methods
 
-`getClips(params, limit?)`
-- `params`: Clip parameters (sort and time range)
+`getClips(params?, limit?)`
+- `params`: Optional clip parameters (sort and time range)
 - `limit`: Optional number of clips to fetch (default: 20)
 - Returns: Promise<GetClipsResponse>
 
 ### Parameters
 
 ```typescript
-type ClipParams = {
-  sort: 'view' | 'recent' | 'trending';
-  time: 'day' | 'week' | 'month' | 'all';
-};
+// Available through ClipOptions export
+const ClipOptions = {
+  sort: ['view', 'recent', 'trending'],
+  time: ['day', 'week', 'month', 'all']
+} as const;
+
+// Type-safe parameter interface
+interface ClipParams {
+  sort?: 'view' | 'recent' | 'trending';  // defaults to 'view'
+  time?: 'day' | 'week' | 'month' | 'all';  // defaults to 'day'
+}
 ```
 
 ## Example Output
