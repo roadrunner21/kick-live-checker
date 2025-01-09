@@ -27,7 +27,7 @@ npm install -g ts-kick-scraper
 
 ### For development:
 ```bash
-git clone https://github.com/yourusername/ts-kick-scraper.git
+git clone https://github.com/Hefti-Web-Solutions/ts-kick-scraper
 cd ts-kick-scraper
 npm install
 npm run build
