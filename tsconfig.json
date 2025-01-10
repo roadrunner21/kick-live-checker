@@ -9,8 +9,6 @@
     "strict": true,
     "skipLibCheck": true,
     "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
     "moduleResolution": "node"
   },
   "include": [
